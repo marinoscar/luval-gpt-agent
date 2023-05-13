@@ -1,0 +1,16 @@
+﻿* Code Generation
+* Code Completion
+* Code Optimization
+* Code Debugging
+* Content Generation for Marketing
+* Content Generation for Customer service
+* Content Generation for Research and development
+* Content Generation for Human resources
+* Content Generation for Education and training
+* Content Generation for external publications
+* Content Generation for company policies
+* Knowledge Management for enterprise search
+* Knowledge Management for enterprise search
+* Knowledge Management for content summarization
+* Knowledge Management for next best action recommendation
+* Knowledge Management for user training

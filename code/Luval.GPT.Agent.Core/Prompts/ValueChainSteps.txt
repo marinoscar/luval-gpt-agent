@@ -1,0 +1,8 @@
+﻿Please provide the steps of the value chain for the {sector} sector
+Include the following information
+1. Name of the step of the value chain (JSON Key: name)
+2. Description for the step of the value chain (JSON key: description)
+3. Major challenge that organization phase for that particular area of the value chain (JSON key: challenge) 
+
+Provide the information in a JSON array format and only include the JSON, nothing else
+ 

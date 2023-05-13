@@ -1,0 +1,17 @@
+﻿You are a consultant in Artificial Intelligence (A.I.) that specializes in Large Language Models (L.L.M.), you are working for a client in the {sector} sector, you are trying to help the client improve their {step} value chain, where {challenge}
+
+Your goal is to come up with the top 7 use cases where A.I. and L.L.M. can be leveraged to improve the process in the value chain with the use of capabilities like:
+
+{capability}
+
+Avoid the use of use cases that include numeric calculations like anomaly detection or predictive analytics
+
+Provide the following information
+1. L.L.M. capability the use case would use (JSON Key: capability)
+2. Detail description of the use case, write it as an objective, do not start with To or Be (JSON Key: description)
+3. Provide a description on how the use case can be implemented with Open AI GPT-3 (JSON Key: implementation)
+4. Indicate if the use case requires the use of Open AI GPT-3 Emebedings, Completions or Other endpoint (JSON Key: endpoint)
+5. Indicate if the use case requires the use of Open AI GPT-3 custom model, with Yes, No or N/A (JSON Key: customModel)
+6. Title for the description of the use case (JSON Key: title)
+
+Provide the information in a JSON array format and only the JSON
