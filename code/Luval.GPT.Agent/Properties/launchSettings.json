@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "Luval.GPT.Agent": {
-      "commandName": "Project",
-      "commandLineArgs": "/key af571342449d40c69684ac6885948ed2"
-    }
-  }
-}
