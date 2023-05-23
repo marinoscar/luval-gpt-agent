@@ -8,7 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\luval-ai-meeting-notes\code\Luval.MN.Core\Luval.MN.Core.csproj" />
+    <ProjectReference Include="..\..\..\luval-logging\code\Luval.Logging\Luval.Logging.csproj" />
     <ProjectReference Include="..\Luval.GPT.Agent.Core\Luval.GPT.Agent.Core.csproj" />
+    <ProjectReference Include="..\Utilities\Luval.FinanceResearch\Luval.FinanceResearch.csproj" />
   </ItemGroup>
 
 </Project>

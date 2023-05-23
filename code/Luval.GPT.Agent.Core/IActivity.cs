@@ -8,6 +8,12 @@ namespace Luval.GPT.Agent.Core
 {
     public interface IActivity
     {
+
+        /// <summary>
+        /// Unique code for the activity
+        /// </summary>
+        string Code { get; }
+
         /// <summary>
         /// The unique name for the command
         /// </summary>
@@ -18,9 +24,24 @@ namespace Luval.GPT.Agent.Core
         string Description { get; }
 
         /// <summary>
+        /// Gets or sets the max number of retries
+        /// </summary>
+        int MaxRetries { get; set; }
+
+        /// <summary>
+        /// Gets or sets the time to wait before retrying
+        /// </summary>
+        TimeSpan DelayBetweenRetries { get; set; }
+
+        /// <summary>
+        /// Gets the status of the activity
+        /// </summary>
+        ExecutionStatus Status { get; }
+
+        /// <summary>
         /// The input parameters required to complete the command
         /// </summary>
-        IDictionary<string, string> InputParameters { get; }
+        Dictionary<string, string> InputParameters { get; set; }
 
         /// <summary>
         /// Execute the command
@@ -30,7 +51,7 @@ namespace Luval.GPT.Agent.Core
         /// <summary>
         /// Key pair values coming from the exeuction
         /// </summary>
-        IDictionary<string, string> Result { get; }
+        Dictionary<string, string> Result { get; }
 
         /// <summary>
         /// A list with the key pair values from the execution
@@ -43,10 +64,60 @@ namespace Luval.GPT.Agent.Core
         bool ImplementListResult { get; }
 
         /// <summary>
-        /// Gets the number of tokens used by the command
+        /// Event on the case of an error
         /// </summary>
-        int TokensUsed { get; }
+        event EventHandler<ActivityErrorEventArgs> ActivityError;
+
+        /// <summary>
+        /// Event when the activity sends a message to the subscriber
+        /// </summary>
+        event EventHandler<ActivityMessageEventArgs> ActivityMessage;
+
+        /// <summary>
+        /// Event when the activity status has changed
+        /// </summary>
+        event EventHandler<ActivityStatusChangeEventArgs> ActivityStatusChanged;
+
+        /// <summary>
+        /// Event when the activity is starting
+        /// </summary>
+        event EventHandler ActivityStarting;
+
+        /// <summary>
+        /// Event when the activity is completed
+        /// </summary>
+        event EventHandler ActivityCompleted;
 
 
+    }
+
+    /// <summary>
+    /// Indicates the status of an run
+    /// </summary>
+    public enum ExecutionStatus { 
+        /// <summary>
+        /// No status provided
+        /// </summary>
+        None, 
+        /// <summary>
+        /// Activity is pending of starting
+        /// </summary>
+        Pending, 
+        /// <summary>
+        /// Activity is in progress
+        /// </summary>
+        InProgress, 
+        /// <summary>
+        /// Activity was completed
+        /// </summary>
+        Completed, 
+        /// <summary>
+        /// Activity has faulted
+        /// </summary>
+        Faulted,
+        /// <summary>
+        /// Activity is retrying
+        /// </summary>
+        Retrying
     }
 }

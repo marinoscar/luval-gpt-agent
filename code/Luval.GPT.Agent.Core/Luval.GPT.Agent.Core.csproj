@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\luval-logging\code\Luval.Logging\Luval.Logging.csproj" />
     <ProjectReference Include="..\..\..\Luval.OpenAI\code\Luval.OpenAI\Luval.OpenAI.csproj" />
   </ItemGroup>
 

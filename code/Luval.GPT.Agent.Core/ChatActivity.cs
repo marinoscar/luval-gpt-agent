@@ -8,21 +8,16 @@ using System.Text;
 using System.Threading.Tasks;
 using Luval.OpenAI.Chat;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace Luval.GPT.Agent.Core
 {
-    public class ChatActivity : IActivity
+    public class ChatActivity : BaseActivity, ILLMActivity
     {
-        public ChatActivity(ILogger logger, ChatEndpoint endpoint, string prompt, double temperature = 0.7d) : this(logger, endpoint, prompt, Model.TextDavinci003, temperature)
-        {
-
-        }
-
-        protected ChatActivity(ILogger logger, ChatEndpoint endpoint, string prompt, Model model, double temperature = 0.7d)
+        public ChatActivity(ILogger logger, ChatEndpoint endpoint, string prompt, double temperature = 0.7d) : base(logger)
         {
             if (logger == null) throw new ArgumentNullException(nameof(logger));
             if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
-            if (model == null) throw new ArgumentNullException(nameof(model));
             if (string.IsNullOrEmpty(prompt)) throw new ArgumentNullException(nameof(prompt));
 
             Logger = logger;
@@ -30,13 +25,13 @@ namespace Luval.GPT.Agent.Core
             InputParameters = new Dictionary<string, string>();
             Temperature = temperature;
             Prompt = prompt;
-            Model = model;
             Result = new Dictionary<string, string>();
             ResultList = new List<Dictionary<string, string>>();
+            Name = "Chat Activity";
+            Description = "Runs a prompt";
         }
 
-
-        protected virtual ILogger Logger { get; private set; }
+        #region Property Implementation
 
         /// <summary>
         /// Gets the command prompt
@@ -49,77 +44,65 @@ namespace Luval.GPT.Agent.Core
         protected virtual double Temperature { get; private set; }
 
         /// <summary>
-        /// Gets the model to use for the prompt
-        /// </summary>
-        protected virtual Model Model { get; private set; }
-
-        /// <summary>
         /// Gets a completion endpoint
         /// </summary>
-        protected ChatEndpoint Chat { get; private set; }
+        protected virtual ChatEndpoint Chat { get; private set; }
 
         /// <inheritdoc/>
-        public virtual string Name => "Chat Activity";
+        public int TokensUsed { get; protected set; }
 
         /// <inheritdoc/>
-        public virtual string Description => "Completes a prompt";
+        public override string Name { get;  set; }
 
         /// <inheritdoc/>
-        public IDictionary<string, string> InputParameters { get; private set; }
+        public override string Description { get;  set; }
 
         /// <inheritdoc/>
-        public IDictionary<string, string> Result { get; private set; }
+        public override bool ImplementListResult => false;
 
-        /// <inheritdoc/>
-        public virtual List<Dictionary<string, string>> ResultList { get; private set; }
+        #endregion
 
-        /// <inheritdoc/>
-        public virtual bool ImplementListResult => false;
+        #region Methods
 
-        /// <inheritdoc/>
-        public virtual int TokensUsed { get; private set; }
-
-        /// <inheritdoc/>
-        public virtual async Task ExecuteAsync()
+        /// <summary>
+        /// Runs the prompt
+        /// </summary>
+        protected async override Task OnExecuteAsync()
         {
             var p = ApplyParametersToPrompt();
-            var tokens = TokenCalculator.FromPrompt(p);
             var result = default(ChatResponse);
-            var tries = 0;
-            var success = false;
-            while (!success)
-            {
-                success = true;
-                try
-                {
-                    Chat.AddUserMessage(p);
-                    result = await Chat.SendAsync(Temperature);
-                    Chat.ClearMessages();
-                }
-                catch (Exception ex)
-                {
-                    success = false;
-                    var message = $"Failed to run prompt: {p}";
-                    Logger.LogWarning($"FAILED TRY {tries+1}");
-                    Logger.LogWarning($"{message} with exception: {ex}");
-                    if (tries >= 3)
-                    {
-                        success = true;
-                        Logger.LogError($"ERROR: UNABLE TO COMPLETE AFTER {tries}");
-                    }
-                    tries++;
-                }
-            }
+            Chat.ClearMessages();
+            Chat.AddUserMessage(p);
+            LogDebug($"[{Name}] - Running Prompt: {p}");
+            result = await Chat.SendAsync(Temperature);
+            Chat.ClearMessages();
             if (result != null)
             {
                 if (result?.Usage != null) TokensUsed += result.Usage.TotalTokens;
                 if (result?.Choice != null)
                 {
-                    Result["choice"] = result.Choice.ToString().Replace("```json", "").Replace("```", "");
+                    foreach (var choice in result.Choices)
+                    {
+                        choice.Message.Content = CleanUpResponse(choice);
+                    }
+                    Result["choice"] = result.Choice.ToString();
                 }
             }
             else
                 Result["choice"] = string.Empty;
+        }
+
+        /// <summary>
+        /// Casts the result into an object
+        /// </summary>
+        /// <typeparam name="T">The type</typeparam>
+        /// <returns>A casted result</returns>
+        public virtual T CastResult<T>()
+        {
+            if (Result == null || !Result.Values.Any()) return default(T);
+            var content = Result.Values.FirstOrDefault();
+            if (string.IsNullOrEmpty(content)) return default(T);
+            return JsonConvert.DeserializeObject<T>(content);
         }
 
         /// <summary>
@@ -135,5 +118,18 @@ namespace Luval.GPT.Agent.Core
             }
             return result;
         }
+
+        /// <summary>
+        /// Method is run for all of the choices as part of the chat response
+        /// </summary>
+        /// <param name="chatChoice">The response coming from the model</param>
+        /// <returns>A cleand up version of the choice</returns>
+        protected virtual string CleanUpResponse(ChatChoice chatChoice)
+        {
+            return chatChoice.ToString().Replace("```json", "").Replace("```", "");
+        }
+
+        #endregion
+
     }
 }

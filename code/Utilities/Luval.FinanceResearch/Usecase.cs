@@ -5,12 +5,20 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Luval.GPT.Agent.Core
+namespace Luval.FinanceResearch
 {
-    public class SampleCapability
+    public class Usecase
     {
         [JsonIgnore]
-        public string? Sector { get; set; }
+        public string? FinanceArea { get; set; }
+        [JsonIgnore]
+        public string? SubProcess { get; set; }
+        [JsonIgnore]
+        public string? SubProcessDescription { get; set; }
+        [JsonIgnore]
+        public string? KeyPerformanceIndicator { get; set; }
+        [JsonIgnore]
+        public string? KPIDescription { get; set; }
 
         [JsonPropertyName("capability")]
         public string? Capability { get; set; }
@@ -29,9 +37,5 @@ namespace Luval.GPT.Agent.Core
 
         [JsonPropertyName("customModel")]
         public string? CustomModel { get; set; }
-
-        [JsonIgnore]
-        public ValueChain? Step { get; set; }
-
     }
 }

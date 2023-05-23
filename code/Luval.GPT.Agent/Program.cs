@@ -1,8 +1,14 @@
-﻿using Luval.GPT.Agent.Core;
+﻿using Luval.FinanceResearch.Activities;
+using Luval.GPT.Agent.Core;
+using Luval.Logging.Providers;
+using Luval.MN.Core.Agent;
 using Luval.OpenAI;
 using Luval.OpenAI.Chat;
 using Luval.OpenAI.Completion;
+using Luval.OpenAI.Models;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Diagnostics;
 using System.Net;
 
 namespace Luval.GPT.Agent
@@ -33,22 +39,22 @@ namespace Luval.GPT.Agent
         /// <param name="arguments"></param>
         static void DoAction(ConsoleSwitches arguments)
         {
-            var key = new NetworkCredential("", arguments["/key"]).SecurePassword;
-            var auth = new ApiAuthentication(key);
-            var endpoint = ChatEndpoint.CreateAzure(auth, "ey-sandbox");
-            var valueChainFile = "valueChain.json";
-            var valueChainData = new List<ValueChain>();
-            if (File.Exists(valueChainFile))
-                valueChainData = JsonConvert.DeserializeObject<List<ValueChain>>(File.ReadAllText(valueChainFile));
-            else
-            {
-                var stepReport = new ValueChainStepReport(new CustomLogger(), endpoint, 0d);
-                stepReport.Execute();
-                valueChainData = JsonConvert.DeserializeObject<List<ValueChain>>(File.ReadAllText(valueChainFile));
-            }
-            
-            var work = new ValueChainReport(new CustomLogger(), endpoint, 0d);
-            work.Execute(valueChainData);
+            var sw = Stopwatch.StartNew();
+            WriteLine(ConsoleColor.Green, $"Starting Process");
+            var logger = new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() });
+            var openAIKey = arguments["/key"];
+            var speechKey = arguments["/audioKey"];
+            var agent = new MeetingNotesAgent(logger);
+            agent.InputParameters["OpenAIKey"] = openAIKey;
+            agent.InputParameters["SpeechKey"] = speechKey;
+            agent.InputParameters["WorkingDirectory"] = @"C:\Users\CH489GT\OneDrive - EY\Work\EY\Meeting Notes";
+            agent.InputParameters["DestinationFolder"] = @"C:\Users\CH489GT\OneDrive - EY\Work\EY\Meeting Notes\Completed";
+
+
+            sw.Stop();
+
+            WriteLine(ConsoleColor.Green, $"Process Completed in {sw.Elapsed}");
+            Console.ReadLine();
         }
 
         /// <summary>
