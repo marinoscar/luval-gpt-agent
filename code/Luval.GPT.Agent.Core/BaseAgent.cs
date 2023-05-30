@@ -64,19 +64,36 @@ namespace Luval.GPT.Agent.Core
         {
             var sw = Stopwatch.StartNew();
             InitializeAgent();
-
             Logger?.LogInformation($"Starting Agent: {Name}");
+            Session.Status = ExecutionStatus.InProgress;
+            Repository.UpdateSession(Session);
 
-            await OnExecuteAsync();
+            try
+            {
+                await OnExecuteAsync();
+                Session.Status = ExecutionStatus.Completed;
+            }
+            catch (Exception ex)
+            {
+                Session.Status = ExecutionStatus.Faulted;
+                Session.ErrorMessage = ex.Message;
+                Logger?.LogError(ex, $"{Name} Faulted");
+            }
+
+            Session.DurationInSeconds = sw.Elapsed.TotalSeconds;
+            Session.UtcStoppedOn = DateTime.UtcNow;
+            Session.Result = JsonConvert.SerializeObject(Result);
+            Repository.UpdateSession(Session);
+
             sw.Stop();
-
             Logger?.LogInformation($"Completed Agent: {Name} Duration: {sw.Elapsed}");
+
         }
 
         protected virtual void InitializeAgent()
         {
-            var agent = Repository.GetAgentByCode(Code);
-            if (agent == null)
+            Agent = Repository.GetAgentByCode(Code);
+            if (Agent == null)
             {
                 var a = new Model.Agent()
                 {
@@ -86,10 +103,10 @@ namespace Luval.GPT.Agent.Core
                     FullQualifiedName = GetType().FullName,
                     InputParameters = JsonConvert.SerializeObject(InputParameters)
                 };
-                agent = Repository.CreateAgent(a);
+                Agent = Repository.CreateAgent(a);
             }
 
-            var session = Repository.CreateSession(agent);
+            var session = Repository.CreateSession(Agent);
             Session = session;
         }
 

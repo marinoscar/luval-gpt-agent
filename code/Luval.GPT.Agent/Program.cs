@@ -1,5 +1,7 @@
 ﻿using Luval.FinanceResearch.Activities;
 using Luval.GPT.Agent.Core;
+using Luval.GPT.Agent.Core.Data;
+using Luval.GPT.Agent.Core.Model;
 using Luval.Logging.Providers;
 using Luval.MN.Core.Activities;
 using Luval.MN.Core.Agent;
@@ -7,6 +9,7 @@ using Luval.OpenAI;
 using Luval.OpenAI.Chat;
 using Luval.OpenAI.Completion;
 using Luval.OpenAI.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Diagnostics;
@@ -40,18 +43,17 @@ namespace Luval.GPT.Agent
         /// <param name="arguments"></param>
         static void DoAction(ConsoleSwitches arguments)
         {
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+
             var sw = Stopwatch.StartNew();
 
             WriteLine(ConsoleColor.Green, $"Starting Process");
             var logger = new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() });
-            var openAIKey = ReadEnvVariable("OpenAIKey");
-            var speechKey = ReadEnvVariable("AzureAudioKey");
 
             var agent = new MeetingNotesAgent(logger);
-            agent.InputParameters["OpenAIKey"] = openAIKey;
-            agent.InputParameters["SpeechKey"] = speechKey;
-            agent.InputParameters["WorkingDirectory"] = @"C:\Users\CH489GT\OneDrive - EY\Work\EY\Meeting Notes";
-            agent.InputParameters["DestinationFolder"] = @"C:\Users\CH489GT\OneDrive - EY\Work\EY\Meeting Notes\Completed";
+            agent.LoadInputParameters();
+
             agent.ExecuteAsync().Wait();
 
             sw.Stop();
@@ -59,6 +61,13 @@ namespace Luval.GPT.Agent
             WriteLine(ConsoleColor.Green, message);
             logger.LogInformation(message);
 
+        }
+
+        static void ConfigureServices(IServiceCollection services)
+        {
+            services.AddSingleton<ILogger>(new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() }));
+            services.AddTransient<IAgentRepository>((s) => { return new AgentRepository(); });
+            services.BuildServiceProvider();
         }
 
         /// <summary>
@@ -83,13 +92,6 @@ namespace Luval.GPT.Agent
                     Console.ReadKey();
                 }
             }
-        }
-
-        private static string ReadEnvVariable(string name)
-        {
-            var val = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
-            if (string.IsNullOrWhiteSpace(val)) throw new ArgumentNullException($"No value available for Env Variable: {name}");
-            return val;
         }
 
         #region Console Methods
