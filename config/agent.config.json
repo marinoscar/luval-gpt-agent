@@ -1,0 +1,14 @@
+{
+  "configurations": [
+    {
+      "assemblyName": "Luval.MN.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "typeName": "Luval.MN.Core.Agent.MeetingNotesAgent",
+      "inputParameters": {
+        "UseOpenAIAzure": "true",
+        "OpenAIAzureEnvironment": "my-sandbox",
+        "WorkingDirectory": "C:\\Meeting Notes",
+        "DestinationFolder": "C:\\Meeting Notes\\Completed"
+      }
+    }
+  ]
+}

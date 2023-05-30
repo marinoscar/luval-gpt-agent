@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 
 namespace Luval.GPT.Agent
 {
@@ -43,18 +44,32 @@ namespace Luval.GPT.Agent
         /// <param name="arguments"></param>
         static void DoAction(ConsoleSwitches arguments)
         {
+            var configFile = arguments["/config"];
+            if(string.IsNullOrWhiteSpace(configFile)) throw new ArgumentNullException(nameof(configFile), $"Config file is required and it is missing, please provide one with switch /config");
+
             var services = new ServiceCollection();
             ConfigureServices(services);
+            BuildAgents(configFile, services);
+
+            var provider = services.BuildServiceProvider();
 
             var sw = Stopwatch.StartNew();
 
             WriteLine(ConsoleColor.Green, $"Starting Process");
+
             var logger = new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() });
 
-            var agent = new MeetingNotesAgent(logger);
-            agent.LoadInputParameters();
+            var agents = provider.GetServices<IAgent>();
+            var agentTasks = new List<Task>();
+            foreach (var agent in agents)
+            {
+                agent.LoadInputParameters();
+                agent.InputParameters = agent.InputParameters;
 
-            agent.ExecuteAsync().Wait();
+                agentTasks.Add(Task.Run(() => agent.ExecuteAsync()));
+            }
+
+            Task.WaitAll(agentTasks.ToArray());
 
             sw.Stop();
             var message = $"Process Completed in {sw.Elapsed}";
@@ -63,11 +78,37 @@ namespace Luval.GPT.Agent
 
         }
 
+
+        static void BuildAgents(string agentConfigurationFileName, ServiceCollection services)
+        {
+            var registration = LoadAgents(agentConfigurationFileName);
+            foreach (var item in registration.Configurations)
+            {
+                var ass = Assembly.Load(item.AssemblyName);
+                var type = ass.GetType(item.TypeName);
+                services.AddTransient(typeof(IAgent), type);
+            }
+        }
+
+        /// <summary>
+        /// Gets the configuration for the agents
+        /// </summary>
+        /// <param name="agentConfigurationFileName">The file that contains the configuration</param>
+        /// <returns>An instance of <see cref="AgentRegistration"/> </returns>
+        static AgentRegistration LoadAgents(string agentConfigurationFileName)
+        {
+            if (!File.Exists(agentConfigurationFileName)) throw new FileNotFoundException($"Configuration file for agent not found: {agentConfigurationFileName}");
+            var result = JsonConvert.DeserializeObject<AgentRegistration>(File.ReadAllText(agentConfigurationFileName));
+            return result;
+        }
+
+        /// <summary>
+        /// Configure the dependencies
+        /// </summary>
         static void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<ILogger>(new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() }));
             services.AddTransient<IAgentRepository>((s) => { return new AgentRepository(); });
-            services.BuildServiceProvider();
         }
 
         /// <summary>

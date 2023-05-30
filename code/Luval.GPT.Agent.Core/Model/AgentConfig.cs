@@ -15,8 +15,10 @@ namespace Luval.GPT.Agent.Core.Model
         }
 
 
-        [JsonProperty("fullyQualifiedName")]
-        public string? FullyQualifiedName { get; set; }
+        [JsonProperty("assemblyName")]
+        public string? AssemblyName { get; set; }
+        [JsonProperty("typeName")]
+        public string? TypeName { get; set; }
 
         [JsonProperty("inputParameters")]
         public Dictionary<string, string> InputParameters { get; set; }
