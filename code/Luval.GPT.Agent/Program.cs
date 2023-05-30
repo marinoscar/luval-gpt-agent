@@ -31,7 +31,7 @@ namespace Luval.GPT.Agent
             {
                 DoAction(arguments);
 
-            }, true);
+            }, false);
         }
 
         /// <summary>
@@ -41,10 +41,11 @@ namespace Luval.GPT.Agent
         static void DoAction(ConsoleSwitches arguments)
         {
             var sw = Stopwatch.StartNew();
+
             WriteLine(ConsoleColor.Green, $"Starting Process");
             var logger = new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() });
-            var openAIKey = arguments["/key"];
-            var speechKey = arguments["/audioKey"];
+            var openAIKey = ReadEnvVariable("OpenAIKey");
+            var speechKey = ReadEnvVariable("AzureAudioKey");
 
             var agent = new MeetingNotesAgent(logger);
             agent.InputParameters["OpenAIKey"] = openAIKey;
@@ -54,9 +55,10 @@ namespace Luval.GPT.Agent
             agent.ExecuteAsync().Wait();
 
             sw.Stop();
+            var message = $"Process Completed in {sw.Elapsed}";
+            WriteLine(ConsoleColor.Green, message);
+            logger.LogInformation(message);
 
-            WriteLine(ConsoleColor.Green, $"Process Completed in {sw.Elapsed}");
-            Console.ReadLine();
         }
 
         /// <summary>
@@ -81,6 +83,13 @@ namespace Luval.GPT.Agent
                     Console.ReadKey();
                 }
             }
+        }
+
+        private static string ReadEnvVariable(string name)
+        {
+            var val = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
+            if (string.IsNullOrWhiteSpace(val)) throw new ArgumentNullException($"No value available for Env Variable: {name}");
+            return val;
         }
 
         #region Console Methods
