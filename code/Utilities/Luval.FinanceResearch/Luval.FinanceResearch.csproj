@@ -11,7 +11,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Luval.OpenAI\code\Luval.OpenAI\Luval.OpenAI.csproj" />
     <ProjectReference Include="..\..\Luval.GPT.Agent.Core\Luval.GPT.Agent.Core.csproj" />
   </ItemGroup>
 
