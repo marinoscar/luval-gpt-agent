@@ -10,7 +10,7 @@ using Luval.OpenAI.Chat;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace Luval.GPT.Agent.Core
+namespace Luval.GPT.Agent.Core.Activity
 {
     public class ChatActivity : BaseActivity, ILLMActivity
     {
@@ -52,10 +52,10 @@ namespace Luval.GPT.Agent.Core
         public int TokensUsed { get; protected set; }
 
         /// <inheritdoc/>
-        public override string Name { get;  set; }
+        public override string Name { get; set; }
 
         /// <inheritdoc/>
-        public override string Description { get;  set; }
+        public override string Description { get; set; }
 
         /// <inheritdoc/>
         public override bool ImplementListResult => false;
@@ -99,9 +99,9 @@ namespace Luval.GPT.Agent.Core
         /// <returns>A casted result</returns>
         public virtual T CastResult<T>()
         {
-            if (Result == null || !Result.Values.Any()) return default(T);
+            if (Result == null || !Result.Values.Any()) return default;
             var content = Result.Values.FirstOrDefault();
-            if (string.IsNullOrEmpty(content)) return default(T);
+            if (string.IsNullOrEmpty(content)) return default;
             return JsonConvert.DeserializeObject<T>(content);
         }
 

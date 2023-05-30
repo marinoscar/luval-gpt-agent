@@ -1,6 +1,7 @@
 ﻿using Luval.FinanceResearch.Activities;
 using Luval.GPT.Agent.Core;
 using Luval.Logging.Providers;
+using Luval.MN.Core.Activities;
 using Luval.MN.Core.Agent;
 using Luval.OpenAI;
 using Luval.OpenAI.Chat;
@@ -44,12 +45,13 @@ namespace Luval.GPT.Agent
             var logger = new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() });
             var openAIKey = arguments["/key"];
             var speechKey = arguments["/audioKey"];
+
             var agent = new MeetingNotesAgent(logger);
             agent.InputParameters["OpenAIKey"] = openAIKey;
             agent.InputParameters["SpeechKey"] = speechKey;
             agent.InputParameters["WorkingDirectory"] = @"C:\Users\CH489GT\OneDrive - EY\Work\EY\Meeting Notes";
             agent.InputParameters["DestinationFolder"] = @"C:\Users\CH489GT\OneDrive - EY\Work\EY\Meeting Notes\Completed";
-
+            agent.ExecuteAsync().Wait();
 
             sw.Stop();
 

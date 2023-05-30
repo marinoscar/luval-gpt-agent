@@ -1,5 +1,6 @@
 ﻿using Luval.FinanceResearch.Inputs;
 using Luval.GPT.Agent.Core;
+using Luval.GPT.Agent.Core.Activity;
 using Luval.OpenAI.Chat;
 using Luval.OpenAI.Models;
 using Microsoft.Extensions.Logging;

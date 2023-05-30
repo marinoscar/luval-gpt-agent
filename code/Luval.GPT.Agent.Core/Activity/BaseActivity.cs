@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Luval.GPT.Agent.Core
+namespace Luval.GPT.Agent.Core.Activity
 {
     public abstract class BaseActivity : IActivity
     {
@@ -16,7 +16,7 @@ namespace Luval.GPT.Agent.Core
         public BaseActivity(ILogger logger)
         {
             Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            Code = this.GetType().Name;
+            Code = GetType().Name;
             InputParameters = new Dictionary<string, string>();
             Result = new Dictionary<string, string>();
             ResultList = new List<Dictionary<string, string>>();
@@ -77,6 +77,9 @@ namespace Luval.GPT.Agent.Core
         #region Event Handling
 
         /// <inheritdoc/>
+        public event EventHandler<ActivityFaultedEventArgs> ActivityFaulted;
+
+        /// <inheritdoc/>
         public event EventHandler<ActivityErrorEventArgs> ActivityError;
 
         /// <inheritdoc/>
@@ -94,6 +97,11 @@ namespace Luval.GPT.Agent.Core
         protected void OnActivityError(ActivityErrorEventArgs args)
         {
             ActivityError?.Invoke(this, args);
+        }
+
+        protected void OnActivityFaulted(ActivityFaultedEventArgs args)
+        {
+            ActivityFaulted?.Invoke(this, args);
         }
 
         protected virtual void OnActivityMessage(ActivityMessageEventArgs args)
@@ -123,7 +131,7 @@ namespace Luval.GPT.Agent.Core
             var success = false;
             var retries = 0;
             Status = ExecutionStatus.InProgress;
-            while (success)
+            while (!success)
             {
                 try
                 {
@@ -136,21 +144,19 @@ namespace Luval.GPT.Agent.Core
                     var e = new ActivityErrorEventArgs(ex, retries + 1, MaxRetries);
                     if (retries >= MaxRetries)
                     {
-                        LogError($"Failed running {Name} Exception: {ex}");
-                        Status = ExecutionStatus.Faulted;
-                        OnActivityError(e);
+                        SetAsFaulted(ex);
                         return;
                     }
                     else
                     {
-                        Status = ExecutionStatus.Retrying;
-                        OnActivityError(e);
                         if (e.CancelRetry)
                         {
-                            Status = ExecutionStatus.Faulted;
+                            SetAsFaulted(ex);
                             return;
                         }
-                        LogWarning($"Error running: {Name} Retry attempt number {retries + 1} Error: {ex}");
+                        Status = ExecutionStatus.Retrying;
+                        OnActivityError(e);
+                        LogWarning($"Error running: {Name} Retry attempt number {retries + 1} Retrying after: {DelayBetweenRetries} Error: {ex}");
                         retries++;
                         await Task.Delay(DelayBetweenRetries);
                     }
@@ -160,6 +166,13 @@ namespace Luval.GPT.Agent.Core
             Status = ExecutionStatus.Completed;
             OnActivityCompleted();
             LogInfo($"Completed {Name} in {sw.Elapsed}");
+        }
+
+        private void SetAsFaulted(Exception ex)
+        {
+            LogError($"Failed running {Name} Exception: {ex}");
+            Status = ExecutionStatus.Faulted;
+            OnActivityFaulted(new ActivityFaultedEventArgs(ex));
         }
 
         protected abstract Task OnExecuteAsync();

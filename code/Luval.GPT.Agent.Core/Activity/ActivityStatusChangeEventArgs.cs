@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Luval.GPT.Agent.Core
+namespace Luval.GPT.Agent.Core.Activity
 {
     public class ActivityStatusChangeEventArgs : EventArgs
     {

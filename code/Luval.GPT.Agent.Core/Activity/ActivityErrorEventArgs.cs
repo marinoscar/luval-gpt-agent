@@ -4,13 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Luval.GPT.Agent.Core
+namespace Luval.GPT.Agent.Core.Activity
 {
     public class ActivityErrorEventArgs : EventArgs
     {
         public ActivityErrorEventArgs(Exception exception, int retryCount, int totalRetry)
         {
-            Exception =exception;
+            Exception = exception;
             RetryCount = retryCount;
             TotalRetry = totalRetry;
             CancelRetry = false;

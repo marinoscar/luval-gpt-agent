@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Luval.GPT.Agent.Core
+namespace Luval.GPT.Agent.Core.Activity
 {
     public interface IActivity
     {
@@ -69,6 +69,11 @@ namespace Luval.GPT.Agent.Core
         event EventHandler<ActivityErrorEventArgs> ActivityError;
 
         /// <summary>
+        /// Event on the case the activity has faulted
+        /// </summary>
+        event EventHandler<ActivityFaultedEventArgs> ActivityFaulted;
+
+        /// <summary>
         /// Event when the activity sends a message to the subscriber
         /// </summary>
         event EventHandler<ActivityMessageEventArgs> ActivityMessage;
@@ -94,23 +99,28 @@ namespace Luval.GPT.Agent.Core
     /// <summary>
     /// Indicates the status of an run
     /// </summary>
-    public enum ExecutionStatus { 
+    public enum ExecutionStatus
+    {
         /// <summary>
         /// No status provided
         /// </summary>
-        None, 
+        None,
         /// <summary>
         /// Activity is pending of starting
         /// </summary>
-        Pending, 
+        Pending,
         /// <summary>
         /// Activity is in progress
         /// </summary>
-        InProgress, 
+        InProgress,
         /// <summary>
         /// Activity was completed
         /// </summary>
-        Completed, 
+        Completed,
+        /// <summary>
+        /// Activity has errored
+        /// </summary>
+        Error,
         /// <summary>
         /// Activity has faulted
         /// </summary>
