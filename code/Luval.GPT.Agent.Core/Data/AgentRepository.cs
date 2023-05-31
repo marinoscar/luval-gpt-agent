@@ -1,8 +1,11 @@
 ﻿using Luval.GPT.Agent.Core.Data.Sql;
 using Luval.GPT.Agent.Core.Model;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Collections.Specialized.BitVector32;
@@ -67,6 +70,36 @@ namespace Luval.GPT.Agent.Core.Data
             Context.SessionActivities.Update(activity);
             Context.SaveChanges();
             return activity;
+        }
+
+        public int ResetData()
+        {
+            var affected = 0;
+            using (var conn = Context.Database.GetDbConnection())
+            {
+                if (conn.State != ConnectionState.Open)
+                    conn.Open();
+
+                affected += RunNonQuery(conn, $"DELETE FROM SessionActivities");
+                affected += RunNonQuery(conn, $"DELETE FROM Sessions");
+                affected += RunNonQuery(conn, $"DELETE FROM Agents");
+
+            }
+            return affected;
+        }
+
+        private int RunNonQuery(IDbConnection conn, string query)
+        {
+            var affected = 0;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.Connection = conn;
+                cmd.CommandText = query;
+                cmd.CommandType = CommandType.Text;
+                cmd.CommandTimeout = conn.ConnectionTimeout;
+                affected = cmd.ExecuteNonQuery();
+            }
+            return affected;
         }
 
     }

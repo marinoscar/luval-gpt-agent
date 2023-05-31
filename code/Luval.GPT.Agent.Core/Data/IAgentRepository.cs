@@ -10,5 +10,7 @@ namespace Luval.GPT.Agent.Core.Data
         Session CreateSession(Model.Agent agent);
         SessionActivity UpdateActivity(SessionActivity activity);
         Session UpdateSession(Session session);
+
+        int ResetData();
     }
 }

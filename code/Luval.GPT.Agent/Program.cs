@@ -1,20 +1,16 @@
-﻿using Luval.FinanceResearch.Activities;
-using Luval.GPT.Agent.Core;
+﻿using Luval.GPT.Agent.Core;
 using Luval.GPT.Agent.Core.Data;
 using Luval.GPT.Agent.Core.Model;
+using Luval.GPT.MeetingNotes.Agent;
 using Luval.Logging.Providers;
-using Luval.MN.Core.Activities;
 using Luval.MN.Core.Agent;
-using Luval.OpenAI;
-using Luval.OpenAI.Chat;
-using Luval.OpenAI.Completion;
-using Luval.OpenAI.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
+using MeetingNotesAgent = Luval.GPT.MeetingNotes.Agent.MeetingNotesAgent;
 
 namespace Luval.GPT.Agent
 {
@@ -51,9 +47,11 @@ namespace Luval.GPT.Agent
             ConfigureServices(services);
             BuildAgents(configFile, services);
 
-            var provider = services.BuildServiceProvider();
 
+            var provider = services.BuildServiceProvider();
             var sw = Stopwatch.StartNew();
+
+            ResetData(arguments, provider);
 
             WriteLine(ConsoleColor.Green, $"Starting Process");
 
@@ -78,7 +76,21 @@ namespace Luval.GPT.Agent
 
         }
 
+        /// <summary>
+        /// Reset the local database
+        /// </summary>
+        static void ResetData(ConsoleSwitches args, IServiceProvider provider)
+        {
+            if (!args.ContainsSwitch("/reset")) return;
+            var repo = provider.GetService<IAgentRepository>();
+            repo.ResetData();
+        }
 
+        /// <summary>
+        /// Builds the agents based on the configuration file
+        /// </summary>
+        /// <param name="agentConfigurationFileName"></param>
+        /// <param name="services"></param>
         static void BuildAgents(string agentConfigurationFileName, ServiceCollection services)
         {
             var registration = LoadAgents(agentConfigurationFileName);

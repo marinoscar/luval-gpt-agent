@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\luval-ai-meeting-notes\code\Luval.MN.Core\Luval.MN.Core.csproj" />
+    <ProjectReference Include="..\Agents\Luval.GPT.MeetingNotes\Luval.GPT.MeetingNotes.csproj" />
     <ProjectReference Include="..\Luval.GPT.Agent.Core\Luval.GPT.Agent.Core.csproj" />
     <ProjectReference Include="..\Utilities\Luval.FinanceResearch\Luval.FinanceResearch.csproj" />
   </ItemGroup>
