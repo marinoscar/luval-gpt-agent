@@ -25,6 +25,7 @@ namespace Luval.GPT.Agent
         /// <param name="args">Arguments</param>
         static void Main(string[] args)
         {
+            
             /// Provides a way to parse the arguments <see cref="https://gist.github.com/marinoscar/d84265533b242a8a5e7eb74cdd50b7e5"/>
             var arguments = new ConsoleSwitches(args);
             RunAction(() =>
