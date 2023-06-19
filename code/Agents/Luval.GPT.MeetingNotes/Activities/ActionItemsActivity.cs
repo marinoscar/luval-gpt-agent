@@ -20,7 +20,7 @@ namespace Luval.GPT.MeetingNotes.Activities
         private static string GetPrompt()
         {
             return @"
-Provide a detailed action items, do not number the action items, start the action items with the * character, just provide the paragraph with the action item and nothing more
+Provide a detailed action items, do not number the action items, start the action items with the * character, just provide the paragraph with the action item, write it as an objective and nothing more
 Here is the content to use:
 {Text}
 ";

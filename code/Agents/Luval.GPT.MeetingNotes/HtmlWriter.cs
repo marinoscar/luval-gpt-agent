@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using Luval.GPT.Agent.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,8 +19,8 @@ namespace Luval.GPT.MeetingNotes
         {
             _file = file;
             _document = new HtmlDocument();
-            _document.Load(InitialHtml(pageTitle));
-            _body = _document.DocumentNode.SelectSingleNode("body");
+            _document.LoadHtml(InitialHtml(pageTitle));
+            _body = _document.DocumentNode.SelectSingleNode("//body/div");
 
         }
 
@@ -37,6 +38,8 @@ namespace Luval.GPT.MeetingNotes
     <script src=""https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"" integrity=""sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"" crossorigin=""anonymous""></script>
   </head>
   <body>
+        <div class=""container"">
+        </div>
   </body>
 </html>
 ".Replace("{title}", pageTitle);
@@ -44,15 +47,13 @@ namespace Luval.GPT.MeetingNotes
 
         public void AddParragraph(string text)
         {
-            var node = HtmlNode.CreateNode("<p></p>");
-            node.InnerHtml = text;
+            var node = HtmlNode.CreateNode($"<p>{HttpUtility.HtmlEncode(text)}</p>");
             _body.AppendChild(node);
         }
 
         public void AddHeading(string text, int num = 1)
         {
-            var node = HtmlNode.CreateNode($"<h{num}></h{num}>");
-            node.InnerHtml = HttpUtility.HtmlEncode(text);
+            var node = HtmlNode.CreateNode($"<h{num}>{HttpUtility.HtmlEncode(text)}</h{num}>");
             _body.AppendChild(node);
         }
 
@@ -61,8 +62,7 @@ namespace Luval.GPT.MeetingNotes
             var node = HtmlNode.CreateNode("<ul></ul>");
             foreach (var item in bullets)
             {
-                var li = HtmlNode.CreateNode("<li></li>");
-                li.InnerHtml = HttpUtility.HtmlEncode(item);
+                var li = HtmlNode.CreateNode($"<li>{HttpUtility.HtmlEncode(item)}</li>");
                 node.AppendChild(li);
             }
             _body.AppendChild(node);

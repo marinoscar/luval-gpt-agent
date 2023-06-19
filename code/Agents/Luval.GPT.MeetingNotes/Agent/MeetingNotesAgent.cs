@@ -4,6 +4,7 @@ using Luval.GPT.Agent.Core.Data;
 using Luval.GPT.MeetingNotes.Activities;
 using Luval.OpenAI;
 using Luval.OpenAI.Chat;
+using Luval.OpenAI.Models;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Net;
@@ -46,36 +47,65 @@ namespace Luval.GPT.MeetingNotes.Agent
             audioFiles.InputParameters["DestinationFolder"] = InputParameters["DestinationFolder"];
             await RunActivity(audioFiles);
 
-            foreach (var audioFile in audioFiles.Result.Values)
+            foreach (var audioFileLocation in audioFiles.Result.Values)
             {
-                var transcriber = new TranscribeAudioFileActivity(Logger, new AudioTranscriber(speechConfig, Logger), new AudioFormatConverter(audioFile, Logger));
+                var audioFile = new FileInfo(audioFileLocation);
+                var destinationDirectory = GetOrCreateDestinationDirectory(audioFile);
+
+
+                var transcriber = new TranscribeAudioFileActivity(Logger, new AudioTranscriber(speechConfig, Logger), new AudioFormatConverter(audioFileLocation, Logger));
                 transcriber.InputParameters["WorkingDirectory"] = InputParameters["WorkingDirectory"];
-                transcriber.InputParameters["DestinationFolder"] = InputParameters["DestinationFolder"];
+                transcriber.InputParameters["DestinationFolder"] = destinationDirectory;
                 await RunActivity(transcriber);
+                
 
                 var text = File.ReadAllText(transcriber.Result["TranscriptFile"]);
+
+
                 var summarizer = new SummarizeActivity(Logger, create);
                 var actionItems = new ActionItemsActivity(Logger, create);
-                var summaryFile = await RunChunkActivities(new FileInfo(audioFile), summarizer, text, "summary.txt");
-                var actionFile = await RunChunkActivities(new FileInfo(audioFile), actionItems, text, "actions.txt");
+
+                var summaryFile = await RunChunkActivities(audioFile, summarizer, text, "summary.txt");
+                var actionFile = await RunChunkActivities(audioFile, actionItems, text, "actions.txt");
 
                 var summary = File.ReadAllText(summaryFile);
                 var title = await GetTitle(create(), summary);
 
-                results.Add(new AnalyzerResult()
+                var result = new AnalyzerResult()
                 {
                     ActionItems = actionFile,
                     Summary = summaryFile,
                     Transcript = transcriber.Result["TranscriptFile"],
                     Subject = title,
-                });
+                };
+
+                results.Add(result);
+
+                var htmlActivity = new WriteReportActivity(Logger);
+                htmlActivity.InputParameters["DestinationFolder"] = destinationDirectory;
+                htmlActivity.InputParameters["AudioFile"] = audioFileLocation;
+                htmlActivity.InputParameters["JsonResult"] = JsonConvert.SerializeObject(result);
+                await RunActivity(htmlActivity);
 
                 //Delete temp files
-                if(File.Exists(transcriber.Result["ConvertedAudio"]))
+                if (File.Exists(transcriber.Result["ConvertedAudio"]))
                     File.Delete(transcriber.Result["ConvertedAudio"]);
             }
 
             Result["Result"] = JsonConvert.SerializeObject(results);
+        }
+
+        /// <summary>
+        /// Gets the name of the destination folder
+        /// </summary>
+        /// <returns></returns>
+        private string GetOrCreateDestinationDirectory(FileInfo audio)
+        {
+            var dirInfo = new DirectoryInfo(InputParameters["DestinationFolder"]);
+            var destFolderName = audio.CreationTime.ToString("yyyy-MM-dd");
+            var path = Path.Combine(dirInfo.FullName, destFolderName);
+            if(!Directory.Exists(path)) Directory.CreateDirectory(path);
+            return path;
         }
 
         private Func<ChatEndpoint> CreateEndpointFunc()
@@ -91,7 +121,7 @@ namespace Luval.GPT.MeetingNotes.Agent
                     ai = ChatEndpoint.CreateAzure(new ApiAuthentication(new NetworkCredential("", InputParameters["OpenAIKey"]).SecurePassword), env);
                 }
                 else
-                    ai = ChatEndpoint.CreateOpenAI(new ApiAuthentication(new NetworkCredential("", InputParameters["OpenAIKey"]).SecurePassword));
+                    ai = ChatEndpoint.CreateOpenAI(new ApiAuthentication(new NetworkCredential("", InputParameters["OpenAIKey"]).SecurePassword), Model.GPTTurbo16k);
                 return ai;
             };
         }
@@ -109,7 +139,7 @@ namespace Luval.GPT.MeetingNotes.Agent
         private string GetNewFileName(FileInfo file, string suffix)
         {
             var fileName = file.Name.Replace(file.Extension, "") + "-" + suffix;
-            return  Path.Combine(InputParameters["DestinationFolder"], fileName);
+            return  Path.Combine(GetOrCreateDestinationDirectory(file), fileName);
         }
 
         private async Task<string> GetTitle(ChatEndpoint endpoint, string summary)

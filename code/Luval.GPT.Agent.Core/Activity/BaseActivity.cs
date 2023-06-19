@@ -21,7 +21,7 @@ namespace Luval.GPT.Agent.Core.Activity
             Result = new Dictionary<string, string>();
             ResultList = new List<Dictionary<string, string>>();
             _status = ExecutionStatus.Pending;
-            MaxRetries = 0;
+            MaxRetries = 3;
             DelayBetweenRetries = TimeSpan.Zero;
         }
 

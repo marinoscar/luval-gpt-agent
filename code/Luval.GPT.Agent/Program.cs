@@ -1,15 +1,14 @@
 ﻿using Luval.GPT.Agent.Core;
 using Luval.GPT.Agent.Core.Data;
 using Luval.GPT.Agent.Core.Model;
-using Luval.GPT.MeetingNotes.Agent;
 using Luval.Logging.Providers;
-using Luval.MN.Core.Agent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using MeetingNotesAgent = Luval.GPT.MeetingNotes.Agent.MeetingNotesAgent;
 
 namespace Luval.GPT.Agent
@@ -19,6 +18,26 @@ namespace Luval.GPT.Agent
     /// </summary>
     class Program
     {
+
+        /// <summary>
+        /// Establish how to show the console window
+        /// </summary>
+        /// <param name="state">Values are available here: https://www.pinvoke.net/default.aspx/user32.showwindow</param>
+        static void ShowWindowFunc(int state)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
+
+            [DllImport("User32.dll", CallingConvention = CallingConvention.StdCall, SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            static extern bool ShowWindow([In] IntPtr hWnd, [In] int nCmdShow);
+
+            var handle = Process.GetCurrentProcess().MainWindowHandle;
+
+            ShowWindow(handle, state);
+
+        }
+
+
         /// <summary>
         /// Main entry point to the application
         /// </summary>
@@ -41,6 +60,18 @@ namespace Luval.GPT.Agent
         /// <param name="arguments"></param>
         static void DoAction(ConsoleSwitches arguments)
         {
+
+            if (arguments.ContainsSwitch("/winState") && !string.IsNullOrWhiteSpace(arguments["/winState"]))
+            {
+                var winState = arguments["/winState"];
+                var winStateVal = 0;
+
+                if(int.TryParse(winState, out winStateVal))
+                {
+                    ShowWindowFunc(winStateVal);
+                }
+            }
+
             var configFile = arguments["/config"];
             if(string.IsNullOrWhiteSpace(configFile)) throw new ArgumentNullException(nameof(configFile), $"Config file is required and it is missing, please provide one with switch /config");
 
@@ -52,19 +83,26 @@ namespace Luval.GPT.Agent
             var provider = services.BuildServiceProvider();
             var sw = Stopwatch.StartNew();
 
-            ResetData(arguments, provider);
 
             WriteLine(ConsoleColor.Green, $"Starting Process");
 
             var logger = new CompositeLogger(new ILogger[] { new FileLogger(), new ColorConsoleLogger() });
 
             var agents = provider.GetServices<IAgent>();
+
+            if (arguments.ContainsSwitch("/reset"))
+            {
+                logger.LogInformation("Resetting the data store");
+                ResetData(arguments, provider);
+                return;
+            }
+
             var agentTasks = new List<Task>();
             foreach (var agent in agents)
             {
+                var reg = provider.GetService<AgentRegistration>();
+                LoadParametersFromService(agent, reg);
                 agent.LoadInputParameters();
-                agent.InputParameters = agent.InputParameters;
-
                 agentTasks.Add(Task.Run(() => agent.ExecuteAsync()));
             }
 
@@ -75,6 +113,26 @@ namespace Luval.GPT.Agent
             WriteLine(ConsoleColor.Green, message);
             logger.LogInformation(message);
 
+        }
+
+        /// <summary>
+        /// Loads the parameters from the agent registration
+        /// </summary>
+        /// <param name="agent"></param>
+        /// <param name="reg"></param>
+        static void LoadParametersFromService(IAgent agent, AgentRegistration? reg)
+        {
+            if (reg != null)
+            {
+                var config = reg.Configurations.SingleOrDefault(i => i.TypeName != null && i.TypeName.ToLowerInvariant().Equals(agent.GetType().FullName.ToLowerInvariant()));
+                if (config != null)
+                {
+                    foreach (var item in config.InputParameters)
+                    {
+                        agent.InputParameters[item.Key] = item.Value;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -95,6 +153,7 @@ namespace Luval.GPT.Agent
         static void BuildAgents(string agentConfigurationFileName, ServiceCollection services)
         {
             var registration = LoadAgents(agentConfigurationFileName);
+            services.AddSingleton(registration);
             foreach (var item in registration.Configurations)
             {
                 var ass = Assembly.Load(item.AssemblyName);

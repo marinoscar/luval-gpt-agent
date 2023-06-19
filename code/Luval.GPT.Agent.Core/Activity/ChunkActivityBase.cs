@@ -18,6 +18,8 @@ namespace Luval.GPT.Agent.Core.Activity
     {
         public ILogger Logger { get; set; }
         public Func<ChatEndpoint> Chatendpoint { get; set; }
+        private int _maxTokens;
+        private string _modelId;
 
         protected virtual string Prompt { get; private set; }
 
@@ -26,6 +28,8 @@ namespace Luval.GPT.Agent.Core.Activity
             Logger = logger;
             Chatendpoint = chatEndpoint;
             Prompt = prompt;
+            _modelId = Chatendpoint().Model.Id;
+            _maxTokens = ModelMaxTokens.Instance[_modelId];
         }
 
         public override bool ImplementListResult => false;
@@ -57,8 +61,10 @@ namespace Luval.GPT.Agent.Core.Activity
 
         private ChatActivity Create(string text)
         {
-            return  new ChatActivity(Logger, Chatendpoint(), Prompt, 0d) { 
-                Name = "Runs Prompt on Chunk", Description = Description,
+            return new ChatActivity(Logger, Chatendpoint(), Prompt, 0d)
+            {
+                Name = "Runs Prompt on Chunk",
+                Description = Description,
                 InputParameters = new Dictionary<string, string> { { "Text", text } }
             };
         }
@@ -66,39 +72,42 @@ namespace Luval.GPT.Agent.Core.Activity
         private List<Paragraph> GetParagraphs(string text)
         {
             //var pattern = @"(?<=\n\n|^)([^\n]+)";
-            var sw = Stopwatch.StartNew();
+            var totalTokensInText = TokenCalculator.GetTokens(text, _modelId).Count;
+            if (totalTokensInText < _maxTokens)
+                return new List<Paragraph>() { new Paragraph() { Text = text, Tokens = totalTokensInText } };
+
+
             var result = new List<Paragraph>();
-            var paragraphs = Regex.Split(text, @"(\n|\.|(\n\n)|(\?\n)|(!\n))").Where(i => i.Length > 1).ToList();
+            var paragraphs = text.ToParagraphs().ToList();
             var sb = new StringBuilder();
             var index = 0;
             while (true)
             {
-                if(index < paragraphs.Count)
+                if (index < paragraphs.Count)
                 {
                     sb.Append(paragraphs[index]);
                     if (sb.Length > 1000)
                     {
-                        var tokens = TokenCalculator.GetTokens(sb.ToString(), Luval.OpenAI.Models.Model.GPTTurbo);
+                        var tokens = TokenCalculator.GetTokens(sb.ToString(), _modelId);
                         result.Add(new Paragraph() { Text = sb.ToString(), Tokens = tokens.Count });
                         sb.Clear();
                     }
                 }
-                else {
-                    var tokens = TokenCalculator.GetTokens(sb.ToString(), Luval.OpenAI.Models.Model.GPTTurbo);
+                else
+                {
+                    var tokens = TokenCalculator.GetTokens(sb.ToString(), _modelId);
                     result.Add(new Paragraph() { Text = sb.ToString(), Tokens = tokens.Count });
                     break;
                 }
                 index++;
             }
-            sw.Stop();
-            Debug.WriteLine(sw.Elapsed);
             return result;
         }
 
         private List<string> GetChunks(List<Paragraph> paragraphs)
         {
-            var max = Math.Floor((4096 * 0.98));
-            var chunkSize = Math.Floor(max * 0.8);
+            var max = Math.Floor((_maxTokens * 0.98));
+            var chunkSize = Math.Floor(max * 0.9);
             var result = new List<string>();
             var tokenLoad = 0;
             var index = 0;
