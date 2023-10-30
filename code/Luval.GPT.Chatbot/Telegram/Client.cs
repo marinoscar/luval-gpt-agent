@@ -47,42 +47,6 @@ namespace Luval.GPT.Chatbot.Telegram
                 cancellationToken: _cts.Token
             );
 
-            async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
-            {
-                // Only process Message updates: https://core.telegram.org/bots/api#message
-                if (update.Message is not { } message)
-                    return;
-                // Only process text messages
-                if (message.Text is not { } messageText)
-                    return;
-
-                var chatId = message.Chat.Id;
-
-                _logger.LogDebug($"Received a '{messageText}' message in chat {chatId}.");
-
-                // Echo received message text
-                var echoMessage = "You said:\n" + messageText;
-                Message sentMessage = await botClient.SendTextMessageAsync(
-                    chatId: chatId,
-                    text: echoMessage,
-                    cancellationToken: cancellationToken);
-
-                _logger.LogDebug($"Sent echo message: {echoMessage}");
-            }
-
-            Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
-            {
-                var ErrorMessage = exception switch
-                {
-                    ApiRequestException apiRequestException
-                        => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
-                    _ => exception.ToString()
-                };
-
-                _logger.LogError(ErrorMessage);
-                return Task.CompletedTask;
-            }
-
             var me = await _botClient.GetMeAsync();
 
             return me;
@@ -92,6 +56,42 @@ namespace Luval.GPT.Chatbot.Telegram
         public void Stop()
         {
             if(_cts != null) _cts.Cancel();
+        }
+
+        private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+        {
+            // Only process Message updates: https://core.telegram.org/bots/api#message
+            if (update.Message is not { } message)
+                return;
+            // Only process text messages
+            if (message.Text is not { } messageText)
+                return;
+
+            var chatId = message.Chat.Id;
+
+            _logger.LogDebug($"Received a '{messageText}' message in chat {chatId}.");
+
+            // Echo received message text
+            var echoMessage = "You said:\n" + messageText;
+            Message sentMessage = await botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: echoMessage,
+                cancellationToken: cancellationToken);
+
+            _logger.LogDebug($"Sent echo message: {echoMessage}");
+        }
+
+        private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+        {
+            var ErrorMessage = exception switch
+            {
+                ApiRequestException apiRequestException
+                    => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+                _ => exception.ToString()
+            };
+
+            _logger.LogError(ErrorMessage);
+            return Task.CompletedTask;
         }
 
     }

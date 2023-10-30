@@ -1,5 +1,10 @@
 ﻿using Luval.GPT.Chatbot.Telegram;
+using Luval.GPT.Chatbot.Telegram.Services;
 using Luval.Logging.Providers;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Telegram.Bot;
 
 namespace Luval.GPT.Chatbot
 {
@@ -7,13 +12,34 @@ namespace Luval.GPT.Chatbot
     {
         static void Main(string[] args)
         {
-            var chatbot = new Client(ConfigReader.Get("telegramKey"), new ColorConsoleLogger());
-            var user = chatbot.Start().Result;
-            Console.WriteLine($"Start listening for @{user.Username}");
-            Console.ReadLine();
 
-            // Send cancellation request to stop bot
-            chatbot.Stop();
+            var logger = new CompositeLogger(new List<ILogger> { new ColorConsoleLogger(), new FileLogger() });
+
+            IHost host = Host.CreateDefaultBuilder(args)
+                .ConfigureServices((context, services) =>
+                {
+                    // Register Bot configuration
+                    services.Configure<BotConfiguration>(
+                        context.Configuration.GetSection(BotConfiguration.Configuration));
+
+                    // Register named HttpClient to benefits from IHttpClientFactory
+                    // and consume it with ITelegramBotClient typed client.
+                    // More read:
+                    //  https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-5.0#typed-clients
+                    //  https://docs.microsoft.com/en-us/dotnet/architecture/microservices/implement-resilient-applications/use-httpclientfactory-to-implement-resilient-http-requests
+                    services.AddHttpClient("telegram_bot_client")
+                            .AddTypedClient<ITelegramBotClient>((httpClient, sp) =>
+                            {
+                                TelegramBotClientOptions options = new(ConfigReader.Get("telegramKey") ?? "");
+                                return new TelegramBotClient(options, httpClient);
+                            });
+
+                    services.AddSingleton<ILogger>(logger);
+                    services.AddScoped<UpdateHandler>();
+                    services.AddScoped<ReceiverService>();
+                    services.AddHostedService<PollingService>();
+                })
+                .Build();
         }
     }
 }
