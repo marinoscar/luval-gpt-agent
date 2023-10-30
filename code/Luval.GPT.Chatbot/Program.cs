@@ -1,9 +1,12 @@
 ﻿using Luval.GPT.Chatbot.Telegram;
 using Luval.GPT.Chatbot.Telegram.Services;
 using Luval.Logging.Providers;
+using Luval.OpenAI;
+using Luval.OpenAI.Chat;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using Telegram.Bot;
 
 namespace Luval.GPT.Chatbot
@@ -14,10 +17,17 @@ namespace Luval.GPT.Chatbot
         {
 
             var logger = new CompositeLogger(new List<ILogger> { new ColorConsoleLogger(), new FileLogger() });
+            var chatEndpoint = ChatEndpoint.CreateOpenAI(new ApiAuthentication(new NetworkCredential("", PrivateConfig.OpenAIKey).SecurePassword));
+            var aiProvider = new AIProvider(chatEndpoint, new ChatRepository());
+
+            logger.LogInformation("Starting service");
 
             IHost host = Host.CreateDefaultBuilder(args)
                 .ConfigureServices((context, services) =>
                 {
+
+                    logger.LogInformation("Configurating services");
+
                     // Register Bot configuration
                     services.Configure<BotConfiguration>(
                         context.Configuration.GetSection(BotConfiguration.Configuration));
@@ -30,16 +40,22 @@ namespace Luval.GPT.Chatbot
                     services.AddHttpClient("telegram_bot_client")
                             .AddTypedClient<ITelegramBotClient>((httpClient, sp) =>
                             {
-                                TelegramBotClientOptions options = new(ConfigReader.Get("telegramKey") ?? "");
+                                TelegramBotClientOptions options = new(PrivateConfig.TelegramKey);
                                 return new TelegramBotClient(options, httpClient);
                             });
 
+                    services.AddSingleton<SecurityProvider>(new SecurityProvider());
+                    services.AddSingleton<AIProvider>(aiProvider);
                     services.AddSingleton<ILogger>(logger);
                     services.AddScoped<UpdateHandler>();
                     services.AddScoped<ReceiverService>();
                     services.AddHostedService<PollingService>();
+
                 })
                 .Build();
+
+            logger.LogInformation("Running services");
+            host.Run();
         }
     }
 }

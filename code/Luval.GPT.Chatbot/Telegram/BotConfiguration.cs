@@ -11,7 +11,7 @@ namespace Luval.GPT.Chatbot.Telegram
 
         public BotConfiguration()
         {
-            BotToken = ConfigReader.Get("telegramKey") ?? "";
+            BotToken = PrivateConfig.TelegramKey;
         }
 
         public static readonly string Configuration = "BotConfiguration";

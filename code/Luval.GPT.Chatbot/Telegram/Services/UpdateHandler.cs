@@ -11,22 +11,29 @@ using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types;
 using Telegram.Bot;
+using Newtonsoft.Json;
 
 namespace Luval.GPT.Chatbot.Telegram.Services
 {
     public class UpdateHandler : IUpdateHandler
     {
         private readonly ITelegramBotClient _botClient;
-        private readonly ILogger<UpdateHandler> _logger;
+        private readonly ILogger _logger;
+        private readonly AIProvider _aiProvider;
+        private readonly SecurityProvider _securityProvider;
+        private bool isFirstTime = true;
 
-        public UpdateHandler(ITelegramBotClient botClient, ILogger<UpdateHandler> logger)
+        public UpdateHandler(ITelegramBotClient botClient, AIProvider aIProvider, SecurityProvider securityProvider, ILogger logger)
         {
             _botClient = botClient;
             _logger = logger;
+            _aiProvider = aIProvider;
+            _securityProvider = securityProvider;
         }
 
         public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
         {
+            _logger.LogDebug("Called HandleUpdateAsync");
             var handler = update switch
             {
                 // UpdateType.Unknown:
@@ -48,9 +55,12 @@ namespace Luval.GPT.Chatbot.Telegram.Services
 
         private async Task BotOnMessageReceived(Message message, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Receive message type: {MessageType}", message.Type);
+            _logger.LogDebug("Receive message type: {MessageType}", message.Type);
             if (message.Text is not { } messageText)
                 return;
+
+            var msgJson = JsonConvert.SerializeObject(message, Formatting.Indented);
+            _logger.LogDebug("```\n\n\n" + msgJson + "\n\n\n```");
 
             var action = messageText.Split(' ')[0] switch
             {
@@ -61,26 +71,28 @@ namespace Luval.GPT.Chatbot.Telegram.Services
                 "/request" => RequestContactAndLocation(_botClient, message, cancellationToken),
                 "/inline_mode" => StartInlineQuery(_botClient, message, cancellationToken),
                 "/throw" => FailingHandler(_botClient, message, cancellationToken),
-                _ => Usage(_botClient, message, cancellationToken)
+                _ => DoRespond(_botClient, message, cancellationToken)
             };
             Message sentMessage = await action;
             _logger.LogInformation("The message was sent with id: {SentMessageId}", sentMessage.MessageId);
+        }
 
-            // Send inline keyboard
-            // You can process responses in BotOnCallbackQueryReceived handler
-            static async Task<Message> SendInlineKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-            {
-                await botClient.SendChatActionAsync(
-                    chatId: message.Chat.Id,
-                    chatAction: ChatAction.Typing,
-                    cancellationToken: cancellationToken);
+        // Send inline keyboard
+        // You can process responses in BotOnCallbackQueryReceived handler
+        private async Task<Message> SendInlineKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Called SendInlineKeyboard");
+            await botClient.SendChatActionAsync(
+                chatId: message.Chat.Id,
+                chatAction: ChatAction.Typing,
+                cancellationToken: cancellationToken);
 
-                // Simulate longer running task
-                await Task.Delay(500, cancellationToken);
+            // Simulate longer running task
+            await Task.Delay(500, cancellationToken);
 
-                InlineKeyboardMarkup inlineKeyboard = new(
-                    new[]
-                    {
+            InlineKeyboardMarkup inlineKeyboard = new(
+                new[]
+                {
                     // first row
                     new []
                     {
@@ -93,120 +105,142 @@ namespace Luval.GPT.Chatbot.Telegram.Services
                         InlineKeyboardButton.WithCallbackData("2.1", "21"),
                         InlineKeyboardButton.WithCallbackData("2.2", "22"),
                     },
-                    });
+                });
 
-                return await botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: "Choose",
-                    replyMarkup: inlineKeyboard,
-                    cancellationToken: cancellationToken);
-            }
+            return await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "Choose",
+                replyMarkup: inlineKeyboard,
+                cancellationToken: cancellationToken);
+        }
 
-            static async Task<Message> SendReplyKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-            {
-                ReplyKeyboardMarkup replyKeyboardMarkup = new(
-                    new[]
-                    {
+        private async Task<Message> SendReplyKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Called SendReplyKeyboard");
+            ReplyKeyboardMarkup replyKeyboardMarkup = new(
+                new[]
+                {
                         new KeyboardButton[] { "1.1", "1.2" },
                         new KeyboardButton[] { "2.1", "2.2" },
-                    })
+                })
+            {
+                ResizeKeyboard = true
+            };
+
+            return await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "Choose",
+                replyMarkup: replyKeyboardMarkup,
+                cancellationToken: cancellationToken);
+        }
+
+        private async Task<Message> RemoveKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Called RemoveKeyboard");
+            return await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "Removing keyboard",
+                replyMarkup: new ReplyKeyboardRemove(),
+                cancellationToken: cancellationToken);
+        }
+
+        private async Task<Message> SendFile(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Called SendFile");
+            await botClient.SendChatActionAsync(
+                message.Chat.Id,
+                ChatAction.UploadPhoto,
+                cancellationToken: cancellationToken);
+
+            const string filePath = "Files/tux.png";
+            await using FileStream fileStream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var fileName = filePath.Split(Path.DirectorySeparatorChar).Last();
+
+            return await botClient.SendPhotoAsync(
+                chatId: message.Chat.Id,
+                photo: new InputFileStream(fileStream, fileName),
+                caption: "Nice Picture",
+                cancellationToken: cancellationToken);
+        }
+
+        private async Task<Message> RequestContactAndLocation(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Called RequestContactAndLocation");
+            ReplyKeyboardMarkup RequestReplyKeyboard = new(
+                new[]
                 {
-                    ResizeKeyboard = true
-                };
-
-                return await botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: "Choose",
-                    replyMarkup: replyKeyboardMarkup,
-                    cancellationToken: cancellationToken);
-            }
-
-            static async Task<Message> RemoveKeyboard(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-            {
-                return await botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: "Removing keyboard",
-                    replyMarkup: new ReplyKeyboardRemove(),
-                    cancellationToken: cancellationToken);
-            }
-
-            static async Task<Message> SendFile(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-            {
-                await botClient.SendChatActionAsync(
-                    message.Chat.Id,
-                    ChatAction.UploadPhoto,
-                    cancellationToken: cancellationToken);
-
-                const string filePath = "Files/tux.png";
-                await using FileStream fileStream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                var fileName = filePath.Split(Path.DirectorySeparatorChar).Last();
-
-                return await botClient.SendPhotoAsync(
-                    chatId: message.Chat.Id,
-                    photo: new InputFileStream(fileStream, fileName),
-                    caption: "Nice Picture",
-                    cancellationToken: cancellationToken);
-            }
-
-            static async Task<Message> RequestContactAndLocation(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-            {
-                ReplyKeyboardMarkup RequestReplyKeyboard = new(
-                    new[]
-                    {
                     KeyboardButton.WithRequestLocation("Location"),
                     KeyboardButton.WithRequestContact("Contact"),
-                    });
+                });
 
-                return await botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: "Who or Where are you?",
-                    replyMarkup: RequestReplyKeyboard,
-                    cancellationToken: cancellationToken);
-            }
+            return await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "Who or Where are you?",
+                replyMarkup: RequestReplyKeyboard,
+                cancellationToken: cancellationToken);
+        }
 
-            static async Task<Message> Usage(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        private async Task<Message> DoRespond(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Called Usage");
+
+            if (message == null) throw new ArgumentNullException(nameof(message));
+
+            //const string usage = "Usage:\n" +
+            //                     "/inline_keyboard - send inline keyboard\n" +
+            //                     "/keyboard    - send custom keyboard\n" +
+            //                     "/remove      - remove custom keyboard\n" +
+            //                     "/photo       - send a photo\n" +
+            //                     "/request     - request location or contact\n" +
+            //                     "/inline_mode - send keyboard with Inline Query";
+
+            if (isFirstTime) isFirstTime = false;
+
+            if (!_securityProvider.IsAuthenticated(message.From.Id.ToString()))
             {
-                const string usage = "Usage:\n" +
-                                     "/inline_keyboard - send inline keyboard\n" +
-                                     "/keyboard    - send custom keyboard\n" +
-                                     "/remove      - remove custom keyboard\n" +
-                                     "/photo       - send a photo\n" +
-                                     "/request     - request location or contact\n" +
-                                     "/inline_mode - send keyboard with Inline Query";
-
+                var unauthorized = $"{message.From.FirstName} thanks for reaching out, please contact the admin provide your ID: {message.From.Id} to get access";
                 return await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: usage,
+                    text: unauthorized,
                     replyMarkup: new ReplyKeyboardRemove(),
                     cancellationToken: cancellationToken);
             }
 
-            static async Task<Message> StartInlineQuery(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-            {
-                InlineKeyboardMarkup inlineKeyboard = new(
-                    InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("Inline Mode"));
+            var res = await _aiProvider.RespondToMessageAsync(message.Text);
 
-                return await botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: "Press the button to start Inline Query",
-                    replyMarkup: inlineKeyboard,
-                    cancellationToken: cancellationToken);
-            }
+            return await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: res,
+                replyMarkup: new ReplyKeyboardRemove(),
+                cancellationToken: cancellationToken);
+        }
+
+        private async Task<Message> StartInlineQuery(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("Called StartInlineQuery");
+            InlineKeyboardMarkup inlineKeyboard = new(
+                InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("Inline Mode"));
+
+            return await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "Press the button to start Inline Query",
+                replyMarkup: inlineKeyboard,
+                cancellationToken: cancellationToken);
+        }
 
 #pragma warning disable RCS1163 // Unused parameter.
 #pragma warning disable IDE0060 // Remove unused parameter
-            static Task<Message> FailingHandler(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
-            {
-                throw new IndexOutOfRangeException();
-            }
+        private Task<Message> FailingHandler(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        {
+            throw new IndexOutOfRangeException();
+        }
 #pragma warning restore IDE0060 // Remove unused parameter
 #pragma warning restore RCS1163 // Unused parameter.
-        }
 
         // Process Inline Keyboard callback data
         private async Task BotOnCallbackQueryReceived(CallbackQuery callbackQuery, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Received inline keyboard callback from: {CallbackQueryId}", callbackQuery.Id);
+            _logger.LogDebug("Received inline keyboard callback from: {CallbackQueryId}", callbackQuery.Id);
 
             await _botClient.AnswerCallbackQueryAsync(
                 callbackQueryId: callbackQuery.Id,
@@ -223,7 +257,7 @@ namespace Luval.GPT.Chatbot.Telegram.Services
 
         private async Task BotOnInlineQueryReceived(InlineQuery inlineQuery, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Received inline query from: {InlineQueryFromId}", inlineQuery.From.Id);
+            _logger.LogDebug("Received inline query from: {InlineQueryFromId}", inlineQuery.From.Id);
 
             InlineQueryResult[] results = {
             // displayed result
@@ -243,7 +277,7 @@ namespace Luval.GPT.Chatbot.Telegram.Services
 
         private async Task BotOnChosenInlineResultReceived(ChosenInlineResult chosenInlineResult, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Received inline result: {ChosenInlineResultId}", chosenInlineResult.ResultId);
+            _logger.LogDebug("Received inline result: {ChosenInlineResultId}", chosenInlineResult.ResultId);
 
             await _botClient.SendTextMessageAsync(
                 chatId: chosenInlineResult.From.Id,
@@ -256,7 +290,7 @@ namespace Luval.GPT.Chatbot.Telegram.Services
 
         private Task UnknownUpdateHandlerAsync(Update update, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Unknown update type: {UpdateType}", update.Type);
+            _logger.LogDebug("Unknown update type: {UpdateType}", update.Type);
             return Task.CompletedTask;
         }
 
@@ -268,7 +302,7 @@ namespace Luval.GPT.Chatbot.Telegram.Services
                 _ => exception.ToString()
             };
 
-            _logger.LogInformation("HandleError: {ErrorMessage}", ErrorMessage);
+            _logger.LogError("HandleError: {ErrorMessage}", ErrorMessage);
 
             // Cooldown in case of network connection error
             if (exception is RequestException)

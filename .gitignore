@@ -399,3 +399,4 @@ FodyWeavers.xsd
 code/Luval.GPT.Agent/Properties/launchSettings.json
 config/notes.config.json
 /code/Luval.GPT.Chatbot/private.json
+/code/Luval.GPT.Chatbot/PrivateConfig.cs
