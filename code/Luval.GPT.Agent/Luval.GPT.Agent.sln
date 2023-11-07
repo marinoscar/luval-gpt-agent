@@ -9,7 +9,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Luval.GPT.Agent.Core", "..\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Luval.GPT.MeetingNotes", "..\Agents\Luval.GPT.MeetingNotes\Luval.GPT.MeetingNotes.csproj", "{E0C58209-41F4-4F8B-928B-16E4398E9F36}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luval.GPT.Chatbot", "..\Luval.GPT.Chatbot\Luval.GPT.Chatbot.csproj", "{64A3E803-FF98-41C1-BA7C-0B9206685B60}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Luval.GPT.Chatbot", "..\Luval.GPT.Chatbot\Luval.GPT.Chatbot.csproj", "{64A3E803-FF98-41C1-BA7C-0B9206685B60}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "luval-framework", "luval-framework", "{3AF0638C-E0B9-43F3-9E0E-9834E5AE869B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Luval.Framework.Services", "..\..\..\luval-framework\code\Luval.Framework.Services\Luval.Framework.Services.csproj", "{15E96907-5948-432E-872D-6E9240E7E648}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,9 +37,16 @@ Global
 		{64A3E803-FF98-41C1-BA7C-0B9206685B60}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{64A3E803-FF98-41C1-BA7C-0B9206685B60}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{64A3E803-FF98-41C1-BA7C-0B9206685B60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15E96907-5948-432E-872D-6E9240E7E648}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15E96907-5948-432E-872D-6E9240E7E648}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15E96907-5948-432E-872D-6E9240E7E648}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15E96907-5948-432E-872D-6E9240E7E648}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{15E96907-5948-432E-872D-6E9240E7E648} = {3AF0638C-E0B9-43F3-9E0E-9834E5AE869B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {83BCEA9D-E02F-4577-B01F-20812E463783}

@@ -19,12 +19,12 @@ namespace Luval.GPT.Chatbot.Telegram.Abstract
     {
         private readonly ITelegramBotClient _botClient;
         private readonly IUpdateHandler _updateHandler;
-        private readonly ILogger<ReceiverServiceBase<TUpdateHandler>> _logger;
+        private readonly ILogger _logger;
 
         internal ReceiverServiceBase(
             ITelegramBotClient botClient,
             TUpdateHandler updateHandler,
-            ILogger<ReceiverServiceBase<TUpdateHandler>> logger)
+            ILogger logger)
         {
             _botClient = botClient;
             _updateHandler = updateHandler;

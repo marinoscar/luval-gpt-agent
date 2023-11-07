@@ -1,8 +1,13 @@
-﻿using Luval.GPT.Chatbot.Telegram;
+﻿using Luval.GPT.Chatbot.Data;
+using Luval.GPT.Chatbot.Data.MySql;
+using Luval.GPT.Chatbot.LLM;
+using Luval.GPT.Chatbot.LLM.Agents;
+using Luval.GPT.Chatbot.Telegram;
 using Luval.GPT.Chatbot.Telegram.Services;
 using Luval.Logging.Providers;
 using Luval.OpenAI;
 using Luval.OpenAI.Chat;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -18,7 +23,9 @@ namespace Luval.GPT.Chatbot
 
             var logger = new CompositeLogger(new List<ILogger> { new ColorConsoleLogger(), new FileLogger() });
             var chatEndpoint = ChatEndpoint.CreateOpenAI(new ApiAuthentication(new NetworkCredential("", PrivateConfig.OpenAIKey).SecurePassword));
-            var aiProvider = new AIProvider(chatEndpoint, new ChatRepository());
+            var aiProvider = new GPTProvider(chatEndpoint);
+            var db = new MySqlChatDbContext(PrivateConfig.DbConnection);
+            InitializeDb(db);
 
             logger.LogInformation("Starting service");
 
@@ -44,11 +51,17 @@ namespace Luval.GPT.Chatbot
                                 return new TelegramBotClient(options, httpClient);
                             });
 
-                    services.AddSingleton<SecurityProvider>(new SecurityProvider());
-                    services.AddSingleton<AIProvider>(aiProvider);
+                    services.AddSingleton<IChatDbContext>(db);
+                    services.AddScoped<ChatRepository>();
+
+
+                    services.AddSingleton<GPTProvider>(aiProvider);
                     services.AddSingleton<ILogger>(logger);
+                    services.AddScoped<IChatbotAgent, StandardChatbotAgent>();
                     services.AddScoped<UpdateHandler>();
                     services.AddScoped<ReceiverService>();
+                    services.AddScoped<GPTService>();
+                    services.AddScoped<ScheduleJobAgent>();
                     services.AddHostedService<PollingService>();
 
                 })
@@ -56,6 +69,16 @@ namespace Luval.GPT.Chatbot
 
             logger.LogInformation("Running services");
             host.Run();
+        }
+
+        private static void InitializeDb(ChatDbContext dbContext)
+        {
+            var isCreated = dbContext.Database.EnsureCreated();
+            if (isCreated)
+            {
+                dbContext.Database.Migrate();
+                _ = dbContext.SeedDataAsync().Result;
+            }
         }
     }
 }

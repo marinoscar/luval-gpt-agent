@@ -19,16 +19,14 @@ namespace Luval.GPT.Chatbot.Telegram.Services
     {
         private readonly ITelegramBotClient _botClient;
         private readonly ILogger _logger;
-        private readonly AIProvider _aiProvider;
-        private readonly SecurityProvider _securityProvider;
+        private readonly IChatbotAgent _chatbot;
         private bool isFirstTime = true;
 
-        public UpdateHandler(ITelegramBotClient botClient, AIProvider aIProvider, SecurityProvider securityProvider, ILogger logger)
+        public UpdateHandler(ITelegramBotClient botClient, IChatbotAgent chatbot, ILogger logger)
         {
             _botClient = botClient;
             _logger = logger;
-            _aiProvider = aIProvider;
-            _securityProvider = securityProvider;
+            _chatbot = chatbot;
         }
 
         public async Task HandleUpdateAsync(ITelegramBotClient _, Update update, CancellationToken cancellationToken)
@@ -194,25 +192,10 @@ namespace Luval.GPT.Chatbot.Telegram.Services
             //                     "/request     - request location or contact\n" +
             //                     "/inline_mode - send keyboard with Inline Query";
 
-            if (isFirstTime) isFirstTime = false;
 
-            if (!_securityProvider.IsAuthenticated(message.From.Id.ToString()))
-            {
-                var unauthorized = $"{message.From.FirstName} thanks for reaching out, please contact the admin provide your ID: {message.From.Id} to get access";
-                return await botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: unauthorized,
-                    replyMarkup: new ReplyKeyboardRemove(),
-                    cancellationToken: cancellationToken);
-            }
 
-            var res = await _aiProvider.RespondToMessageAsync(message.Text);
 
-            return await botClient.SendTextMessageAsync(
-                chatId: message.Chat.Id,
-                text: res,
-                replyMarkup: new ReplyKeyboardRemove(),
-                cancellationToken: cancellationToken);
+            return await _chatbot.OnResponse(botClient, message, cancellationToken);
         }
 
         private async Task<Message> StartInlineQuery(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
