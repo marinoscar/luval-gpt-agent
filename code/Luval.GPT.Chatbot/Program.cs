@@ -1,4 +1,6 @@
-﻿using Luval.GPT.Chatbot.Data;
+﻿using Luval.GPT.Chatbot.Channels;
+using Luval.GPT.Chatbot.Channels.Telegram;
+using Luval.GPT.Chatbot.Data;
 using Luval.GPT.Chatbot.Data.MySql;
 using Luval.GPT.Chatbot.LLM;
 using Luval.GPT.Chatbot.LLM.Agents;
@@ -62,6 +64,7 @@ namespace Luval.GPT.Chatbot
                     services.AddScoped<ReceiverService>();
                     services.AddScoped<GPTService>();
                     services.AddScoped<ScheduleJobAgent>();
+                    services.AddScoped<IChatChannelClient, TelegramChatChannelClient>();
                     services.AddHostedService<PollingService>();
 
                 })

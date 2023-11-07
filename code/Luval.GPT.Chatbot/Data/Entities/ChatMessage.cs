@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Telegram.Bot.Types;
 using Newtonsoft.Json;
 using Microsoft.EntityFrameworkCore;
+using Luval.GPT.Chatbot.Channels;
 
 namespace Luval.GPT.Chatbot.Data.Entities
 {
@@ -33,13 +34,13 @@ namespace Luval.GPT.Chatbot.Data.Entities
         [Required]
         public string? MessageData { get; set; }
 
-        public static ChatMessage FromTelegram(Message message, string chatType = "Standard")
+        public static ChatMessage FromChatClient(ChatTextMessage message, string chatType = "Standard")
         {
             if(message == null) throw new ArgumentNullException(nameof(message));
             return new ChatMessage()
             {
-                ChatId = message.Chat.Id.ToString(),
-                UserId = message.From?.Id.ToString(),
+                ChatId = message.ChatId,
+                UserId = message.UserId,
                 UserText = message.Text,
                 DateTime = message.Date,
                 MessageData = JsonConvert.SerializeObject(message)

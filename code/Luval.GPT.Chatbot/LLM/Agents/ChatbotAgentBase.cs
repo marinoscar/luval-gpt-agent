@@ -11,6 +11,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types;
 using Telegram.Bot;
 using Luval.GPT.Chatbot.Telegram;
+using Luval.GPT.Chatbot.Channels;
 
 namespace Luval.GPT.Chatbot.LLM.Agents
 {
@@ -30,48 +31,43 @@ namespace Luval.GPT.Chatbot.LLM.Agents
             ChatType = chatType;
         }
 
-        public virtual async Task<Message> OnResponse(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        public virtual async Task<ChatTextMessage> OnResponse(IChatChannelClient client, ChatTextMessage message, CancellationToken cancellationToken)
         {
-            return await OnTimedResponse(botClient, message, cancellationToken);
+            return await OnTimedResponse(client, message, cancellationToken);
         }
 
-        protected virtual async Task<Message> OnTimedResponse(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        protected virtual async Task<ChatTextMessage> OnTimedResponse(IChatChannelClient client, ChatTextMessage message, CancellationToken cancellationToken)
         {
-            var result = default(Message);
+            var result = default(ChatTextMessage);
             var resultMessage = await ControlledExecution(async () => { return await GetResponse(message); },
                 async () =>
                 {
-                    await SendResponse(botClient, message, "Please hold, I'm working on your response", cancellationToken);
+                    await SendResponse(client, message, "Please hold, I'm working on your response", cancellationToken);
                 });
 
 
-            result = await SendResponse(botClient, message, resultMessage, cancellationToken);
+            result = await SendResponse(client, message, resultMessage, cancellationToken);
 
             return result;
         }
 
-        protected virtual Task<Message> SendResponse(ITelegramBotClient botClient, Message message, string text, CancellationToken cancellationToken)
+        protected virtual Task<ChatTextMessage> SendResponse(IChatChannelClient client, ChatTextMessage message, string text, CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"To: {message.From?.Id} Response: {text}");
-            return botClient.SendTextMessageAsync(
-                chatId: message.Chat.Id,
-                text: text,
-                replyMarkup: new ReplyKeyboardRemove(),
-                cancellationToken: cancellationToken);
+            return client.SendTextMessageAsync(message.ChatId, text, cancellationToken);
         }
 
-        private async Task<string> GetResponse(Message message)
+        private async Task<string> GetResponse(ChatTextMessage message)
         {
-            if (!Repository.IsUserValid(message.From.Id.ToString()))
-                return $"{message.From.FirstName} thanks for trying to use this bot, please contact the administrator and provide this number {message.From.Id} to get your user activated";
+            if (!Repository.IsUserValid(message.UserId))
+                return $"{message.FirstName} thanks for trying to use this bot, please contact the administrator and provide this number {message.UserId} to get your user activated";
 
-            var history = Repository.GetHistory(message.From.Id.ToString(), ChatType);
+            var history = Repository.GetHistory(message.UserId, ChatType);
 
             var config = new GPTConfiguration() { ChatMessages = history.ToList(), IncomingMessage = message.Text };
             _gptService.Configuration = config;
 
             var response = await _gptService.ExecuteAsync();
-            var chatMessage = ChatMessage.FromTelegram(message, ChatType);
+            var chatMessage = ChatMessage.FromChatClient(message, ChatType);
 
             chatMessage.AgentText = response.Result;
             Repository.PersistRollingChat(chatMessage);

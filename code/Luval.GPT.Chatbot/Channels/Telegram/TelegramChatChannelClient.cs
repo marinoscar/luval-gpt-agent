@@ -14,32 +14,19 @@ namespace Luval.GPT.Chatbot.Channels.Telegram
     {
 
         readonly ITelegramBotClient _client;
-        readonly ILogger _logger;
 
-        public TelegramChatChannelClient(ITelegramBotClient client, ILogger logger)
+        public TelegramChatChannelClient(ITelegramBotClient client)
         {
             _client = client;
-            _logger = logger;
         }
 
         public async Task<ChatTextMessage> SendTextMessageAsync(string chatId, string message, CancellationToken cancellationToken)
         {
-            _logger.LogDebug($"ChatID: {chatId}\nMessage:{message}");
-            var r = default(ChatTextMessage);
-            try
-            {
-                r = (await _client.SendTextMessageAsync(
+            return (await _client.SendTextMessageAsync(
                         chatId: Convert.ToInt64(chatId),
                         text: message,
                         replyMarkup: new ReplyKeyboardRemove(),
                         cancellationToken: cancellationToken)).ToChatTextMessage();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(new EventId(), ex, "Failed to send the message");
-                throw ex;
-            }
-            return r;
         }
     }
 }

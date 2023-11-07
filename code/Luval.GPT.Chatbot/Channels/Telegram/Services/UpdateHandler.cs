@@ -12,6 +12,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 using Telegram.Bot.Types;
 using Telegram.Bot;
 using Newtonsoft.Json;
+using Luval.GPT.Chatbot.Channels.Telegram;
+using Luval.GPT.Chatbot.Channels;
 
 namespace Luval.GPT.Chatbot.Telegram.Services
 {
@@ -60,19 +62,21 @@ namespace Luval.GPT.Chatbot.Telegram.Services
             var msgJson = JsonConvert.SerializeObject(message, Formatting.Indented);
             _logger.LogDebug("```\n\n\n" + msgJson + "\n\n\n```");
 
-            var action = messageText.Split(' ')[0] switch
-            {
-                "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
-                "/keyboard" => SendReplyKeyboard(_botClient, message, cancellationToken),
-                "/remove" => RemoveKeyboard(_botClient, message, cancellationToken),
-                "/photo" => SendFile(_botClient, message, cancellationToken),
-                "/request" => RequestContactAndLocation(_botClient, message, cancellationToken),
-                "/inline_mode" => StartInlineQuery(_botClient, message, cancellationToken),
-                "/throw" => FailingHandler(_botClient, message, cancellationToken),
-                _ => DoRespond(_botClient, message, cancellationToken)
-            };
-            Message sentMessage = await action;
-            _logger.LogInformation("The message was sent with id: {SentMessageId}", sentMessage.MessageId);
+            //var action = messageText.Split(' ')[0] switch
+            //{
+            //    "/inline_keyboard" => SendInlineKeyboard(_botClient, message, cancellationToken),
+            //    "/keyboard" => SendReplyKeyboard(_botClient, message, cancellationToken),
+            //    "/remove" => RemoveKeyboard(_botClient, message, cancellationToken),
+            //    "/photo" => SendFile(_botClient, message, cancellationToken),
+            //    "/request" => RequestContactAndLocation(_botClient, message, cancellationToken),
+            //    "/inline_mode" => StartInlineQuery(_botClient, message, cancellationToken),
+            //    "/throw" => FailingHandler(_botClient, message, cancellationToken),
+            //    _ => DoRespond(_botClient, message, cancellationToken)
+            //};
+            //Message sentMessage = await action;
+
+            var m = await DoRespond(_botClient, message, cancellationToken);
+            _logger.LogInformation("The message was sent with id: {SentMessageId}", m.MessageId);
         }
 
         // Send inline keyboard
@@ -178,7 +182,7 @@ namespace Luval.GPT.Chatbot.Telegram.Services
                 cancellationToken: cancellationToken);
         }
 
-        private async Task<Message> DoRespond(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
+        private async Task<ChatTextMessage> DoRespond(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
         {
             _logger.LogDebug("Called Usage");
 
@@ -195,7 +199,7 @@ namespace Luval.GPT.Chatbot.Telegram.Services
 
 
 
-            return await _chatbot.OnResponse(botClient, message, cancellationToken);
+            return await _chatbot.OnResponse(botClient.ToChatClient(), message.ToChatTextMessage(), cancellationToken);
         }
 
         private async Task<Message> StartInlineQuery(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)

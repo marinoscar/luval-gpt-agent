@@ -15,7 +15,11 @@ namespace Luval.GPT.Chatbot.Channels.Telegram
             return new ChatTextMessage()
             {
                 ChatId = m.Chat.Id.ToString(),
-                UserId = m.From.Id.ToString(),
+                UserId = m.From?.Id.ToString(),
+                MessageId = m.MessageId.ToString(),
+                FirstName = m.From.FirstName,
+                LastName = m.From.LastName,
+                UserName = m.From.Username,
                 Date = m.Date,
                 Text = m.Text
             };
