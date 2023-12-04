@@ -78,6 +78,8 @@ namespace Luval.GPT.Chatbot.Telegram
                 text: echoMessage,
                 cancellationToken: cancellationToken);
 
+            
+
             _logger.LogDebug($"Sent echo message: {echoMessage}");
         }
 
